@@ -10,7 +10,7 @@ A formal architecture specification for domain-specific language model deploymen
 - `semantic-layer/wm-semantic-layer-0.1.yml` — Policy-Aware Semantic Layer schema
 
 ## Citation
-> Mangla, A. (2025). WM-DSLM: A Constrained Generation Architecture for Wealth Management AI (v1.0.0). Zenodo. https://doi.org/[TBD]
+> Mangla, A. (2025). WM-DSLM: A Constrained Generation Architecture for Wealth Management AI (v1.0.0). Zenodo. 10.5281/zenodo.20534786
 
 ## Author
 Aradhna Mangla | aradhnamangla.com | ORCID: 0009-0002-9299-127X
