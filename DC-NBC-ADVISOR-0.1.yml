@@ -1,0 +1,340 @@
+# Decision Contract: Next-Best Conversation Advisory
+# WM-DSLM Reference Implementation
+# ---
+# Contract ID: DC-NBC-ADVISOR-0.1
+# Version: 0.1.0
+# Author: Aradhna Mangla
+# Status: Draft
+# Intent Tier: T1 — ADVICE_PERSONALIZED
+
+contract_id: DC-NBC-ADVISOR-0.1
+version: 0.1.0
+name: "Next-Best Conversation — Advisor Assistant"
+intent_tier: T1_ADVICE_PERSONALIZED
+description: >
+  Governs the generation of a structured next-best conversation recommendation
+  for a financial advisor preparing for a client meeting or proactive outreach.
+  The output identifies the highest-priority conversation topic, supporting
+  talking points, data provenance, suitability flags, and open concerns that
+  must be addressed.
+
+# ─────────────────────────────────────────────
+# REQUIRED INPUTS
+# All fields must be validated before inference.
+# blocking: true means inference halts if field is missing or stale.
+# ─────────────────────────────────────────────
+required_inputs:
+
+  - field: client_id
+    label: "Client identifier"
+    type: string
+    freshness_days: null          # Structural; no freshness requirement
+    freshness_blocking: false
+    permission_required: true
+    permission_scope: "advisor_of_record"
+    blocking: true
+    rationale: "Cannot produce personalized advice without a verified client identifier"
+
+  - field: age
+    label: "Client age"
+    type: integer
+    freshness_days: 365
+    freshness_blocking: false     # Flag but do not halt
+    permission_required: false
+    blocking: true
+    rationale: "Age drives life-stage classification and time-horizon constraints"
+
+  - field: risk_tolerance
+    label: "Documented risk tolerance"
+    type: enum
+    allowed_values: [Conservative, Moderate-Conservative, Moderate, Moderate-Aggressive, Aggressive]
+    freshness_days: 365
+    freshness_blocking: true      # Stale risk tolerance is a suitability concern — halt
+    permission_required: false
+    blocking: true
+    rationale: "Risk tolerance is required for every suitability evaluation under Reg BI and MiFID II"
+
+  - field: aum
+    label: "Assets under management"
+    type: float
+    freshness_days: 30
+    freshness_blocking: false
+    permission_required: false
+    blocking: true
+    rationale: "AUM determines service tier eligibility and solution set"
+
+  - field: life_stage
+    label: "Life stage classification"
+    type: enum
+    allowed_values: [Accumulation-Early, Accumulation-Peak, Pre-Retirement, Early-Retirement, Late-Retirement, Wealth-Transfer]
+    freshness_days: 365
+    freshness_blocking: false
+    permission_required: false
+    blocking: true
+    rationale: "Life stage is the primary context classifier for conversation prioritization"
+
+  - field: holdings
+    label: "Current portfolio allocation (asset class level)"
+    type: object
+    freshness_days: 30
+    freshness_blocking: false
+    permission_required: true
+    permission_scope: "advisory_account_view"
+    blocking: false               # Can proceed with flag if missing
+    rationale: "Required for concentration risk, suitability, and allocation conversation topics"
+
+  - field: open_concerns
+    label: "Logged open concerns and unresolved flags"
+    type: array
+    freshness_days: 90
+    freshness_blocking: false
+    permission_required: false
+    blocking: false
+    rationale: "Open concerns must be surfaced in output regardless of primary topic"
+
+  - field: recent_events
+    label: "Life and financial events in past 6 months"
+    type: array
+    freshness_days: 180
+    freshness_blocking: false
+    permission_required: false
+    blocking: false
+    rationale: "Recent events are the strongest signal for conversation prioritization"
+
+  - field: jurisdiction
+    label: "Client jurisdiction (state/country)"
+    type: string
+    freshness_days: 365
+    freshness_blocking: false
+    permission_required: false
+    blocking: true
+    rationale: "Jurisdiction determines applicable regulatory overlay and permissible output"
+
+  - field: last_review_date
+    label: "Date of last formal review"
+    type: date
+    freshness_days: null
+    freshness_blocking: false
+    permission_required: false
+    blocking: false
+    rationale: "Review recency is a flag trigger; > 12 months requires surfacing"
+
+# ─────────────────────────────────────────────
+# OPTIONAL INPUTS
+# Improve confidence score if present.
+# ─────────────────────────────────────────────
+optional_inputs:
+
+  - field: household_members
+    label: "Household composition"
+    confidence_weight: 0.05
+    rationale: "Enables estate planning and beneficiary conversation triggers"
+
+  - field: tax_situation
+    label: "Tax filing status and bracket (approximate)"
+    confidence_weight: 0.08
+    rationale: "Required for Roth conversion, tax-loss harvesting, and estate conversations"
+
+  - field: estate_documents_date
+    label: "Date of most recent estate documents"
+    confidence_weight: 0.06
+    rationale: "Enables estate planning currency check"
+
+  - field: insurance_coverage
+    label: "Life, LTC, disability coverage status"
+    confidence_weight: 0.06
+    rationale: "Insurance gap identification"
+
+  - field: advisor_notes
+    label: "Free-form advisor notes on client communication preferences"
+    confidence_weight: 0.04
+    rationale: "Improves conversation framing recommendations"
+
+# ─────────────────────────────────────────────
+# BLOCK CONDITIONS
+# If any of these are true, inference must halt.
+# ─────────────────────────────────────────────
+block_conditions:
+
+  - condition: "risk_tolerance.freshness_days > 365"
+    reason: "Stale risk tolerance invalidates suitability evaluation; cannot produce T1 output"
+    error_code: ERR-BLOCK-001
+
+  - condition: "advisor_of_record.permission != granted"
+    reason: "Advisor must be confirmed as advisor of record before accessing client profile"
+    error_code: ERR-BLOCK-002
+
+  - condition: "client_id.verified == false"
+    reason: "Client identity must be verified before producing personalized advice output"
+    error_code: ERR-BLOCK-003
+
+# ─────────────────────────────────────────────
+# FLAG CONDITIONS
+# Inference proceeds but flags must appear in output.
+# ─────────────────────────────────────────────
+flag_conditions:
+
+  - condition: "last_review_date > 12 months ago"
+    flag: "REVIEW_OVERDUE"
+    output_message: "Last formal review was more than 12 months ago — schedule or note in output"
+
+  - condition: "holdings.single_security_pct > 0.20"
+    flag: "CONCENTRATION_RISK"
+    output_message: "Single-security concentration exceeds 20% threshold — must surface in output"
+
+  - condition: "holdings.freshness_days > 30"
+    flag: "STALE_HOLDINGS"
+    output_message: "Holdings data is older than 30 days — note in data gaps and reduce confidence"
+
+  - condition: "open_concerns.count > 0 AND open_concerns.age_days > 90"
+    flag: "OPEN_CONCERNS_AGING"
+    output_message: "Open concerns have not been addressed in 90+ days — must surface all in output"
+
+  - condition: "recent_events.contains(['death', 'divorce', 'business_sale', 'job_loss', 'inheritance'])"
+    flag: "MAJOR_LIFE_EVENT"
+    output_message: "Major life event detected — elevate to primary conversation topic if not already"
+
+# ─────────────────────────────────────────────
+# CONSTRAINTS
+# Hard limits on model output for this contract.
+# ─────────────────────────────────────────────
+constraints:
+
+  - id: CON-001
+    description: "Output must not name specific investment products, funds, or securities"
+    category: output_scope
+    enforcement: structural      # Enforced via output schema, not prompt instruction
+
+  - id: CON-002
+    description: "Output must not constitute tax advice; tax topics must include referral language"
+    category: regulatory
+    enforcement: flag_required
+
+  - id: CON-003
+    description: "Output must not constitute legal advice; legal topics must include referral language"
+    category: regulatory
+    enforcement: flag_required
+
+  - id: CON-004
+    description: "Every recommendation must cite at least one specific data point from the client profile"
+    category: provenance
+    enforcement: validation_check
+
+  - id: CON-005
+    description: "All open_concerns in client profile must be listed in output, regardless of primary topic"
+    category: completeness
+    enforcement: validation_check
+
+  - id: CON-006
+    description: "Confidence rating must be computed from data completeness formula, not model certainty"
+    category: calibration
+    enforcement: formula_override
+
+  - id: CON-007
+    description: "Jurisdiction-specific regulatory notes must appear if jurisdiction triggers known overlay"
+    category: regulatory
+    enforcement: flag_required
+
+# ─────────────────────────────────────────────
+# OUTPUT SCHEMA
+# Required structure of model output.
+# All fields mandatory unless marked optional.
+# ─────────────────────────────────────────────
+output_schema:
+
+  primary_conversation_topic:
+    type: string
+    max_words: 10
+    description: "The single highest-priority topic for the next advisor-client conversation"
+
+  why_now:
+    type: string
+    max_sentences: 2
+    description: "Urgency or timing rationale, citing specific data points"
+
+  talking_points:
+    type: array
+    min_items: 2
+    max_items: 5
+    item_type: string
+    description: "Specific conversation points with data citation per point"
+
+  data_driving_recommendation:
+    type: array
+    min_items: 1
+    description: "Explicit list of data points that drove the primary recommendation"
+
+  open_concerns_to_address:
+    type: array
+    description: "All open concerns from client profile that must be addressed in this meeting"
+    required: always              # Even if empty array
+
+  suitability_flags:
+    type: array
+    description: "Any suitability concerns identified during contract validation"
+    required: always
+
+  jurisdiction_notes:
+    type: string
+    description: "Applicable regulatory or planning notes for client jurisdiction"
+    nullable: true
+
+  confidence:
+    type: enum
+    allowed_values: [High, Medium, Low]
+    description: "Confidence rating derived from data completeness formula"
+
+  confidence_reason:
+    type: string
+    description: "Plain-language explanation of confidence rating and limiting factors"
+
+  data_gaps:
+    type: array
+    description: "Inputs not present or stale that would improve confidence if updated"
+    required: always
+
+# ─────────────────────────────────────────────
+# CONFIDENCE FORMULA
+# ─────────────────────────────────────────────
+confidence_formula:
+  description: >
+    Confidence is a function of input completeness and freshness,
+    not model language certainty.
+  formula: >
+    base_score = (present_required_inputs / total_required_inputs)
+    freshness_factor = (fresh_inputs / present_required_inputs)
+    confidence_score = base_score * freshness_factor
+    High:   confidence_score >= 0.85
+    Medium: confidence_score >= 0.65
+    Low:    confidence_score < 0.65
+
+# ─────────────────────────────────────────────
+# JURISDICTION OVERLAYS
+# Regulatory notes triggered by jurisdiction field.
+# ─────────────────────────────────────────────
+jurisdiction_overlays:
+
+  - jurisdiction_pattern: "US.*"
+    applicable_frameworks: [Reg-BI, ERISA, State-fiduciary-rules]
+    notes: "Reg BI requires documentation of basis for recommendation in best interest of retail customer"
+
+  - jurisdiction_pattern: "UK.*"
+    applicable_frameworks: [FCA-Consumer-Duty, MiFID-II-retained]
+    notes: "FCA Consumer Duty requires demonstrating good outcomes for retail clients"
+
+  - jurisdiction_pattern: "EU.*"
+    applicable_frameworks: [MiFID-II, ESMA-suitability-guidelines]
+    notes: "MiFID II Article 25 suitability assessment required; ESMA guidelines on ongoing suitability apply"
+
+  - jurisdiction_pattern: "CA.*"
+    applicable_frameworks: [CSA-31-103, Best-Interest-Standard]
+    notes: "Canadian best interest standard applies; provincial overlay may apply"
+
+# ─────────────────────────────────────────────
+# CHANGELOG
+# ─────────────────────────────────────────────
+changelog:
+  - version: 0.1.0
+    date: "2025-01-01"
+    author: "Aradhna Mangla"
+    changes: "Initial draft. Establishes base contract for NBC advisory intent tier."

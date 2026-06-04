@@ -1,0 +1,301 @@
+# WM-DSLM Policy-Aware Semantic Layer
+# Version: 0.1.0
+# Author: Aradhna Mangla
+# ---
+# This file is a versioned governance artifact.
+# It defines the canonical terms, risk categories, life stage taxonomy,
+# and policy constraints injected into the WM-DSLM at inference time.
+# It is NOT retrieved at query time — it is always-injected.
+# When policy changes, update this file and increment the version.
+
+schema_id: WM-DSLM-SEMANTIC-LAYER
+version: 0.1.0
+effective_date: "2025-01-01"
+governance_owner: "[Firm Chief Data Officer / AI Governance function]"
+review_cadence: quarterly
+
+# ─────────────────────────────────────────────
+# REGULATORY DEFINITIONS
+# Canonical definitions of regulated terms.
+# Source: Reg BI, MiFID II, FCA Consumer Duty.
+# ─────────────────────────────────────────────
+regulatory_definitions:
+
+  suitable:
+    term: "suitable"
+    definition: >
+      A recommendation is suitable when it is consistent with the client's investment profile,
+      including risk tolerance, time horizon, liquidity needs, tax situation, and other financial
+      circumstances and needs. Suitability must be evaluated at the time of the recommendation
+      and is not established by the client's acceptance of the recommendation.
+    regulatory_basis: [Reg-BI, MiFID-II-Art25, FINRA-Rule-2111]
+    model_instruction: >
+      When using the term 'suitable', apply this definition. Do not use the colloquial meaning
+      ('good enough' or 'acceptable'). If a recommendation's suitability is uncertain given
+      available data, surface as a suitability flag.
+
+  eligible:
+    term: "eligible"
+    definition: >
+      A client is eligible for a product category, strategy, or service tier when they meet
+      the documented criteria for that category: minimum asset threshold, risk tolerance
+      alignment, sophistication requirements, and any regulatory qualification criteria.
+      Eligibility is a precondition for recommendation, not a recommendation itself.
+    model_instruction: >
+      Do not recommend product categories to clients who do not meet documented eligibility
+      criteria. If eligibility data is unavailable, surface as a data gap, not an assumption.
+
+  concentrated_position:
+    term: "concentrated position"
+    definition: >
+      A holding in a single security or issuer that represents 20% or more of total
+      portfolio value, or a sector allocation exceeding 35% of equity allocation.
+      Concentrated positions require explicit suitability documentation.
+    threshold_single_security: 0.20
+    threshold_sector: 0.35
+    model_instruction: >
+      Flag all concentrated positions in output. Do not omit concentration flags even if
+      the primary conversation topic is unrelated.
+
+  material:
+    term: "material"
+    definition: >
+      Information is material if there is a substantial likelihood that a reasonable
+      investor would consider it important in making an investment decision. In the
+      advice context, material information includes undisclosed conflicts of interest,
+      significant changes in client financial circumstances, and changes to the
+      firm's approved product shelf.
+    model_instruction: >
+      Do not omit material information from output in favor of brevity.
+
+  discretionary:
+    term: "discretionary"
+    definition: >
+      A discretionary account is one where the advisor has authority to execute
+      transactions without prior client approval for each trade. Recommendations
+      for discretionary accounts require documentation of investment policy alignment,
+      not just suitability at point of recommendation.
+    model_instruction: >
+      Note discretionary account status in output when it affects the recommendation logic.
+
+# ─────────────────────────────────────────────
+# RISK TOLERANCE TAXONOMY
+# Canonical definitions for risk tolerance tiers.
+# ─────────────────────────────────────────────
+risk_tolerance_taxonomy:
+
+  Conservative:
+    label: Conservative
+    behavioral_definition: >
+      Client prioritizes capital preservation over growth. Can tolerate minimal
+      short-term losses (< 5% of portfolio value). Primary goal is income or
+      protection of existing assets. Time horizon is typically short (< 5 years)
+      or client has low emotional tolerance for volatility regardless of horizon.
+    typical_equity_range: "0%–30%"
+    typical_fixed_income_range: "50%–80%"
+    typical_cash_range: "5%–20%"
+
+  Moderate-Conservative:
+    label: Moderate-Conservative
+    behavioral_definition: >
+      Client accepts modest short-term losses (5%–10%) in exchange for moderate
+      growth potential. Blend of income and growth orientation. Medium time horizon.
+    typical_equity_range: "25%–45%"
+    typical_fixed_income_range: "40%–65%"
+    typical_cash_range: "5%–15%"
+
+  Moderate:
+    label: Moderate
+    behavioral_definition: >
+      Client accepts meaningful short-term volatility (10%–20%) for long-term
+      growth. Balanced orientation. Medium-to-long time horizon.
+    typical_equity_range: "45%–65%"
+    typical_fixed_income_range: "25%–45%"
+    typical_cash_range: "3%–10%"
+
+  Moderate-Aggressive:
+    label: Moderate-Aggressive
+    behavioral_definition: >
+      Client prioritizes growth, accepts significant short-term losses (20%–30%).
+      Long time horizon required. Growth-oriented.
+    typical_equity_range: "65%–80%"
+    typical_fixed_income_range: "15%–30%"
+    typical_cash_range: "2%–8%"
+
+  Aggressive:
+    label: Aggressive
+    behavioral_definition: >
+      Client accepts maximum volatility and potential for significant loss (> 30%)
+      in pursuit of maximum long-term growth. Long time horizon required (> 10 years).
+    typical_equity_range: "80%–100%"
+    typical_fixed_income_range: "0%–15%"
+    typical_cash_range: "0%–5%"
+
+# ─────────────────────────────────────────────
+# LIFE STAGE TAXONOMY
+# Defines life stage classifications and triggers.
+# ─────────────────────────────────────────────
+life_stage_taxonomy:
+
+  Accumulation-Early:
+    label: "Early Accumulation"
+    age_range: "22–38"
+    primary_goals: [wealth_building, emergency_fund, debt_management, first_home]
+    conversation_priority_topics: [investment_fundamentals, tax_advantaged_accounts, protection_basics, budget_optimization]
+    default_time_horizon: "> 25 years"
+
+  Accumulation-Peak:
+    label: "Peak Accumulation"
+    age_range: "38–55"
+    primary_goals: [retirement_readiness, college_funding, mortgage_payoff, business_growth]
+    conversation_priority_topics: [retirement_gap_analysis, college_funding, tax_optimization, concentrated_positions, insurance_review]
+    default_time_horizon: "10–25 years"
+    high_priority_flags: [rsu_vesting, business_liquidity_event, divorce, inheritance]
+
+  Pre-Retirement:
+    label: "Pre-Retirement"
+    age_range: "55–65"
+    primary_goals: [retirement_income_planning, healthcare_bridge, portfolio_derisking, Roth_conversion]
+    conversation_priority_topics: [retirement_income_modeling, Roth_conversion_window, Medicare_bridge, Social_Security_timing, estate_planning_update]
+    default_time_horizon: "5–10 years to retirement"
+    high_priority_flags: [business_sale, cash_drag, no_Roth_strategy, outdated_estate_documents]
+
+  Early-Retirement:
+    label: "Early Retirement"
+    age_range: "65–75"
+    primary_goals: [sustainable_income, RMD_optimization, healthcare_costs, legacy]
+    conversation_priority_topics: [RMD_strategy, withdrawal_sequencing, healthcare_cost_planning, estate_document_review, beneficiary_update]
+    default_time_horizon: "20–25 years (longevity-adjusted)"
+    high_priority_flags: [spouse_death, RMD_start, estate_plan_not_updated, LTC_gap]
+
+  Late-Retirement:
+    label: "Late Retirement"
+    age_range: "75+"
+    primary_goals: [income_stability, healthcare_cost_management, legacy_transfer, cognitive_continuity_planning]
+    conversation_priority_topics: [LTC_planning, beneficiary_review, income_stability, cognitive_continuity, charitable_giving]
+    high_priority_flags: [cognitive_decline_signals, LTC_not_funded, beneficiary_mismatch]
+
+  Wealth-Transfer:
+    label: "Wealth Transfer"
+    trigger: "estate_complexity OR multi-gen_planning OR philanthropy_goal"
+    primary_goals: [tax_efficient_transfer, family_governance, charitable_legacy]
+    conversation_priority_topics: [trust_structures, gifting_strategy, family_governance, charitable_vehicles]
+
+# ─────────────────────────────────────────────
+# PRODUCT CATEGORY DEFINITIONS
+# Generic categories only. Firm-specific eligibility
+# rules must be populated by the governance owner.
+# ─────────────────────────────────────────────
+product_categories:
+
+  - category: equities
+    generic_label: "Equity investments"
+    subcategories: [domestic_equities, international_equities, emerging_markets, sector_specific]
+    eligibility_note: "[Firm to specify eligibility criteria by client tier and risk tolerance]"
+
+  - category: fixed_income
+    generic_label: "Fixed income investments"
+    subcategories: [government_bonds, corporate_bonds, municipal_bonds, inflation_protected]
+    eligibility_note: "[Firm to specify]"
+
+  - category: alternatives
+    generic_label: "Alternative investments"
+    subcategories: [real_assets, private_equity, hedge_strategies, structured_products]
+    eligibility_note: "[Firm to specify accredited investor or qualified purchaser thresholds]"
+    minimum_sophistication: accredited_investor_or_above
+
+  - category: insurance_products
+    generic_label: "Insurance and protection products"
+    subcategories: [life_insurance, LTC_insurance, annuities, disability]
+    eligibility_note: "[Firm to specify]"
+    model_instruction: >
+      Annuity recommendations require explicit suitability documentation.
+      Do not recommend annuities without confirming suitability process is in place.
+
+  - category: tax_advantaged_accounts
+    generic_label: "Tax-advantaged account strategies"
+    subcategories: [Roth_IRA, Roth_401k, HSA, 529, DAF]
+    eligibility_note: "Subject to IRS income and contribution limits; verify current-year thresholds"
+
+  - category: cash_management
+    generic_label: "Cash and liquidity management"
+    subcategories: [money_market, HYSA, T-bills, CDs]
+    eligibility_note: "[Firm to specify]"
+
+# ─────────────────────────────────────────────
+# FRESHNESS RULES
+# Maximum data age by data type and use context.
+# ─────────────────────────────────────────────
+freshness_rules:
+
+  holdings_data:
+    use_context: portfolio_analysis
+    max_age_days: 30
+    rationale: "Holdings used for allocation analysis must be current within one month"
+
+  holdings_data_rebalancing:
+    use_context: rebalancing_recommendation
+    max_age_days: 1
+    rationale: "Rebalancing requires current-day holdings; stale data creates execution risk"
+
+  risk_tolerance:
+    use_context: suitability_evaluation
+    max_age_days: 365
+    rationale: "Risk tolerance must be reviewed at least annually per standard suitability practice"
+
+  client_profile:
+    use_context: general_advice
+    max_age_days: 365
+    rationale: "Core profile data reviewed annually at minimum"
+
+  life_events:
+    use_context: conversation_prioritization
+    max_age_days: 180
+    rationale: "Life events older than 6 months may be resolved; flag if still open"
+
+  market_data:
+    use_context: any
+    max_age_days: 1
+    rationale: "Market data must be current-day for any market-referencing output"
+
+# ─────────────────────────────────────────────
+# OUTPUT CONSTRAINTS
+# What the model may and may not produce.
+# ─────────────────────────────────────────────
+output_constraints:
+
+  permitted:
+    - "Recommendations using generic asset categories defined in product_categories"
+    - "Identification of conversation topics and talking points"
+    - "Flagging of suitability concerns, concentration risks, and open concerns"
+    - "Reference to generic planning strategies (Roth conversion, RMD management, estate document review)"
+    - "Jurisdiction-level regulatory context notes"
+    - "Data gap identification"
+
+  prohibited:
+    - "Naming specific mutual funds, ETFs, stocks, bonds, or insurance products"
+    - "Providing specific tax advice or specific tax calculations"
+    - "Providing legal advice or drafting legal language"
+    - "Making predictions about market returns or performance"
+    - "Recommending specific allocation percentages as a final prescription"
+    - "Referencing client health information outside of LTC/insurance planning context"
+
+  requires_referral_language:
+    - topic: tax_advice
+      referral: "Tax-specific advice should be discussed with the client's tax advisor"
+    - topic: legal_advice
+      referral: "Legal structuring should be discussed with the client's estate attorney"
+    - topic: healthcare_decisions
+      referral: "Healthcare and Medicare decisions should involve a qualified benefits specialist"
+
+# ─────────────────────────────────────────────
+# CHANGELOG
+# ─────────────────────────────────────────────
+changelog:
+  - version: 0.1.0
+    date: "2025-01-01"
+    author: "Aradhna Mangla"
+    changes: >
+      Initial draft. Establishes canonical definitions for regulated terms,
+      risk tolerance taxonomy, life stage taxonomy, product categories,
+      freshness rules, and output constraints.

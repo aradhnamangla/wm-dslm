@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "Please cite this work as below."
+title: "WM-DSLM: A Constrained Generation Architecture for Wealth Management AI"
+version: 1.0.0
+date-released: 2025-01-01
+authors:
+  - family-names: Mangla
+    given-names: Aradhna
+    orcid: "https://orcid.org/0009-0002-9299-127X"
+    website: "https://aradhnamangla.com"
+keywords:
+  - domain-specific language models
+  - wealth management
+  - constrained generation
+  - suitability enforcement
+  - AI governance
+  - decision contracts
+license: CC-BY-4.0
+doi: "[TBD — assign via Zenodo]"
