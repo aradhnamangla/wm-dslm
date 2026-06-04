@@ -5,7 +5,7 @@
 A formal architecture specification for domain-specific language model deployment in wealth management. Introduces Suitability-Constrained Decoding, Decision Contracts, Policy-Aware Semantic Layer, Intent-Tiered Context Assembly, Cryptographic Evidence Layer, and the Constrained Generation Paradigm.
 
 ## Repository Structure
-- `WM-DSLM-v1.0.pdf` — Full paper (SSRN-ready)
+- `WM-DSLM-v1.0.pdf` — Full paper
 - `contracts/DC-NBC-ADVISOR-0.1.yml` — Decision Contract: Next-Best Conversation
 - `semantic-layer/wm-semantic-layer-0.1.yml` — Policy-Aware Semantic Layer schema
 
