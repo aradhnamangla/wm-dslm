@@ -1,2 +1,2 @@
 # wm-dslm
-Wealth Management
+A Domain-Specific Language Model Architecture for Wealth Management
